@@ -2,108 +2,97 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Transaction;
+use App\Exports\TransactionsExport;
+use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
+use Carbon\Carbon;
 
 class TransactionsController extends Controller
 {
     public function index(Request $request)
     {
+        // 1. Inisialisasi Query Dasar
         $query = Transaction::query();
-    
+
+        // 2. Terapkan Filter Bulan (Jika ada)
         if ($request->filled('filter_month')) {
-            $query->where('created_at', 'like', $request->filter_month . '%');
+            $date = Carbon::parse($request->filter_month);
+            $query->whereYear('created_at', $date->year)
+                  ->whereMonth('created_at', $date->month);
         }
-        if ($request->filled('filter_type')) {
-            $query->where('type', $request->filter_type);
-        }
-    
-        $transactions = $query->orderBy('created_at', 'desc')->get();
-        $totalIncome = $transactions->where('type', 'income')->sum('amount');
-        $totalExpense = $transactions->where('type', 'expense')->sum('amount');
+
+        // 3. Ambil data transaksi (Gunakan clone agar filter tidak merusak query agregat di bawah)
+        $transactions = (clone $query)->orderBy('created_at', 'desc')->get();
+        
+        // 4. Hitung Total (Gunakan clone untuk menjaga integritas filter bulan)
+        $totalIncome = (clone $query)->where('type', 'income')->sum('amount');
+        $totalExpense = (clone $query)->where('type', 'expense')->sum('amount');
         $balance = $totalIncome - $totalExpense;
 
-        $topExpense = Transaction::where('type', 'expense')
-            ->select('description', \Illuminate\Support\Facades\DB::raw('SUM(amount) as total'))
+        // 5. Top Expense (Biasanya top expense tetap mengikuti filter bulan yang dipilih)
+        $topExpense = (clone $query)->where('type', 'expense')
+            ->selectRaw('description, SUM(amount) as total')
             ->groupBy('description')
-            ->orderBy('total', 'desc')
-            ->take(5) // Ambil 5 teratas
+            ->orderByDesc('total')
+            ->limit(3)
             ->get();
-    
+
         return view('dashboard', compact('transactions', 'totalIncome', 'totalExpense', 'balance', 'topExpense'));
     }
-   
+
     public function store(Request $request)
     {
-        $request->validate([
-            'description' => 'required|max:255',
-            'type' => 'required|in:income,expense',
-            // Kita batesin maksimal 1.000.000.000 (1 Miliar)
+        $validated = $request->validate([
+            'description' => 'required|string|max:255',
             'amount' => 'required|numeric|min:1|max:1000000000',
-        ], [
-            'amount.max' => 'Waduh, nominalnya kegedean Maksimal 1 Miliar ya.',
-            'amount.min' => 'Nominal gak boleh 0 atau minus.',
+            'type' => 'required|in:income,expense'
         ]);
 
-        // Simpan ke database jika lolos validasi
-        Transaction::create($request->all());
+        Transaction::create($validated);
 
-        return redirect()->back()->with('success', 'Data berhasil disimpan!');
+        return redirect('/')->with('success', 'Transaksi berhasil ditambahkan.');
     }
 
-    public function update(Request $request, string $id)
+    public function update(Request $request, int $id)
     {
-        $request->validate([
-            'description' => 'required|max:255',
-            'type' => 'required|in:income,expense',
+        $validated = $request->validate([
+            'description' => 'required|string|max:255',
             'amount' => 'required|numeric|min:1|max:1000000000',
+            'type' => 'required|in:income,expense'
         ]);
 
         $transaction = Transaction::findOrFail($id);
-        $transaction->update($request->all());
+        $transaction->update($validated);
 
-        return redirect()->back()->with('success', 'Data berhasil diperbarui!');
+        return redirect('/')->with('success', 'Transaksi berhasil diperbarui.');
+    }
+
+    public function destroy(int $id)
+    {
+        $transaction = Transaction::findOrFail($id);
+        $transaction->delete();
+        
+        return redirect('/')->with('success', 'Transaksi berhasil dihapus.');
     }
 
     public function export(Request $request)
     {
-        $query = Transaction::query();
-        // Ambil filter dari request agar hasil excel sama dengan yang dilihat di web
-        if ($request->filled('month')) {
-            $query->where('created_at', 'like', $request->month . '%');
+        $month = $request->get('month');
+        
+        $fileName = 'Laporan_Keuangan_UP_SMK_Taruna_Bangsa';
+        
+        if ($month) {
+            try {
+                // Gunakan Carbon agar lebih aman saat parsing format Y-m
+                $fileName .= '_' . Carbon::parse($month)->format('F_Y');
+            } catch (\Exception $e) {
+                // Fallback jika format tanggal tidak valid
+            }
         }
         
-        if ($request->filled('type')) {
-            $query->where('type', $request->type);
-        }
+        $fileName .= '.xlsx';
 
-        $transactions = $query->orderBy('created_at', 'desc')->get();
-        $labelMonth = $request->month ?: 'Semua_Waktu';
-        $labelType  = $request->type ?: 'Semua_Tipe';
-        $filename   = "Laporan_Keuangan_{$labelMonth}_{$labelType}.xls";
-        // Header untuk memaksa download file Excel
-        header("Content-Type: application/vnd.ms-excel");
-        header("Content-Disposition: attachment; filename=\"$filename\"");
-        header("Pragma: no-cache");
-        header("Expires: 0");
-        // Membuat isi tabel Excel
-        echo "Tanggal\tDeskripsi\tTipe\tNominal\n";
-        foreach ($transactions as $t) {
-            $date    = $t->created_at->format('d/m/Y');
-            $desc    = str_replace(["\t", "\n", "\r"], " ", $t->description); // Bersihkan karakter tab
-            $type    = strtoupper($t->type == 'income' ? 'Masuk' : 'Keluar');
-            $amount  = $t->amount;
-            echo "{$date}\t{$desc}\t{$type}\t{$amount}\n";
-        }
-        exit;
-    }
-
-    /**
-     * Menghapus data transaksi
-     */
-    public function destroy(string $id)
-    {
-        Transaction::destroy($id);
-        return back()->with('success', 'Data berhasil dihapus!');
+        return Excel::download(new TransactionsExport($month), $fileName);
     }
 }

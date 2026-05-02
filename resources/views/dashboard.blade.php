@@ -7,303 +7,438 @@
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
 
     <style>
         :root {
-            --smk-orange: #ff6600;
-            --income-green: #28a745;
-            --expense-red: #dc3545;
+            --bg-main: #f1f5f9;
+            --surface: #ffffff;
+            --primary: #0f172a;
+            --primary-hover: #020617;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-glow-green: rgba(16, 185, 129, 0.15);
+            --accent-glow-red: rgba(239, 68, 68, 0.15);
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
         }
 
+        * { transition: all 0.2s ease; }
+        
         body { 
-            background-color: #f4f7f6; 
-            color: #333; 
+            background-color: var(--bg-main); 
+            color: var(--text-main); 
             font-family: 'Plus Jakarta Sans', sans-serif;
-            font-size: 14px; 
-            overflow-x: hidden; 
+            padding-top: 80px; 
+            -webkit-font-smoothing: antialiased;
         }
         
-        /* Navbar */
+        /* Glassmorphism Navbar */
         .navbar { 
-            background: #fff !important; 
-            border-bottom: 3px solid var(--smk-orange); 
+            background: rgba(255, 255, 255, 0.85) !important;
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.5);
             padding: 12px 0;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
         }
-        .navbar-brand { 
-            font-size: 14px; 
-            font-weight: 800;
-            display: flex; 
-            align-items: center; 
-            gap: 10px; 
-        }
-        .logo-img { width: 40px; height: auto; }
+        .logo-img { width: 38px; height: 38px; margin-right: 12px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
 
-        /* Statistik Horizontal Scroll */
-        .stat-container { 
-            display: flex; 
-            overflow-x: auto; 
-            gap: 12px; 
-            padding: 10px 5px;
-            -webkit-overflow-scrolling: touch;
+        /* Stat Cards with Hover Lift */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
         }
-        .stat-container::-webkit-scrollbar { display: none; } /* Sembunyikan scrollbar */
-
-        .stat-card { 
-            min-width: 170px; 
-            background: #fff; 
-            border-radius: 16px; 
-            padding: 18px; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            flex: 1;
-            border: none;
+        .stat-card {
+            background: var(--surface);
+            padding: 20px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03);
+            position: relative;
+            overflow: hidden;
         }
-        .stat-label { font-size: 10px; color: #888; text-transform: uppercase; font-weight: 700; margin-bottom: 5px; }
-        .stat-value { font-size: 16px; font-weight: 800; margin: 0; white-space: nowrap; }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 4px; height: 100%;
+        }
+        .stat-card.income::before { background: var(--accent-green); }
+        .stat-card.expense::before { background: var(--accent-red); }
+        .stat-card.balance::before { background: var(--primary); }
         
-        .border-income { border-top: 4px solid var(--income-green); }
-        .border-expense { border-top: 4px solid var(--expense-red); }
-        .border-balance { border-top: 4px solid var(--smk-orange); }
+        .stat-card:hover { transform: translateY(-4px); box-shadow: 0 12px 20px -5px rgba(0,0,0,0.08); }
+        .stat-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
+        .stat-value { font-size: 18px; font-weight: 800; margin-top: 8px; letter-spacing: -0.5px; }
 
-        /* Main Box Layout */
-        .main-box { 
+        /* Main Bento Box */
+        .main-box {
+            background: var(--surface);
+            border-radius: 24px;
+            padding: 24px;
+            border: 1px solid var(--border);
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+        }
+        .section-title { font-size: 15px; font-weight: 700; margin-bottom: 20px; color: var(--primary); display: flex; align-items: center; gap: 8px;}
+
+        /* Modern Forms */
+        .form-label-custom { font-weight: 700; font-size: 11px; color: var(--text-muted); margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: 0.5px;}
+        
+        .form-control, .form-select {
+            background: #f8fafc;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .form-control:focus, .form-select:focus { 
             background: #fff; 
-            border-radius: 20px; 
-            padding: 20px; 
-            box-shadow: 0 2px 15px rgba(0,0,0,0.04); 
-            margin-bottom: 20px; 
-        }
-        .section-title { 
-            font-size: 15px; 
-            font-weight: 800; 
-            margin-bottom: 18px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
+            border-color: var(--primary); 
+            box-shadow: 0 0 0 4px rgba(15, 23, 42, 0.08);
         }
 
-        /* Top Expenses List */
-        .expense-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid #f8f9fa;
-        }
-        .expense-info { display: flex; align-items: center; gap: 12px; }
-        .expense-icon {
-            width: 35px;
-            height: 35px;
-            background: #fff5f5;
-            color: var(--expense-red);
-            border-radius: 10px;
+        .btn-save {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 14px;
+            padding: 14px;
+            font-weight: 700;
+            font-size: 14px;
+            width: 100%;
+            margin-top: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
+            gap: 8px;
         }
+        .btn-save:hover { background: green; transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.2); }
+        .btn-save:active { transform: translateY(0); }
 
-        /* Table Optimization */
-        .table-responsive-custom {
-            width: 100%;
-            overflow-x: auto;
+        /* Top Expense Leaderboard */
+        .expense-list { display: flex; flex-direction: column; gap: 12px; }
+        .expense-card {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px; background: var(--surface);
+            border-radius: 14px; border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+        .expense-card:hover { background: #f8fafc; border-color: #cbd5e1; }
+        .rank-num { 
+            font-size: 16px; font-weight: 800; color: #cbd5e1; 
+            width: 30px; text-align: center;
+        }
+        .rank-1 .rank-num { color: #f59e0b; } /* Gold */
+        .rank-2 .rank-num { color: #94a3b8; } /* Silver */
+        .rank-3 .rank-num { color: #d97706; } /* Bronze */
+
+        /* Interactive Table */
+        .table-container { overflow-x: auto; }
+        .custom-table { width: 100%; border-collapse: separate; border-spacing: 0 6px; }
+        .custom-table th { padding: 8px 16px; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        .custom-table tbody tr { position: relative; }
+        .custom-table td { 
+            background: var(--surface); padding: 16px; 
+            border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); 
+            vertical-align: middle;
+        }
+        .custom-table td:first-child { border-left: 1px solid var(--border); border-radius: 14px 0 0 14px; }
+        .custom-table td:last-child { border-right: 1px solid var(--border); border-radius: 0 14px 14px 0; }
+        
+        .custom-table tbody tr:hover td { background: #f8fafc; }
+
+        /* Reveal Action Buttons on Hover */
+        .action-group { opacity: 0; transition: opacity 0.2s ease; }
+        .custom-table tbody tr:hover .action-group { opacity: 1; }
+        
+        .btn-icon {
+            width: 32px; height: 32px; border-radius: 8px; border: none;
+            display: inline-flex; align-items: center; justify-content: center;
+            background: transparent; color: var(--text-muted); cursor: pointer;
+        }
+        .btn-icon:hover { background: #e2e8f0; color: var(--primary); }
+        .btn-icon.delete:hover { background: var(--accent-glow-red); color: var(--accent-red); }
+
+        .badge-status { padding: 6px 12px; border-radius: 8px; font-size: 10px; font-weight: 800; letter-spacing: 0.5px; }
+        .bg-income { background: var(--accent-glow-green); color: var(--accent-green); }
+        .bg-expense { background: var(--accent-glow-red); color: var(--accent-red); }
+
+        /* Smooth Inline Edit Animation */
+        .edit-wrapper {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: max-height 0.3s ease, opacity 0.2s ease, margin 0.3s ease;
+            margin-bottom: 0;
             border-radius: 12px;
         }
-        .table { min-width: 450px; }
-        .table thead th { 
-            background: #f8f9fa; 
-            font-size: 11px; 
-            color: #888;
-            text-transform: uppercase;
-            padding: 12px; 
-            border: none; 
+        .edit-wrapper.active {
+            max-height: 200px; /* Adjust based on content height */
+            opacity: 1;
+            margin-bottom: 8px;
+            background: #f1f5f9;
+            padding: 16px;
+            border: 2px solid var(--border);
+        }
+        .edit-form-control {
+            background: #fff !important;
+            border: 1px solid var(--border) !important;
+            padding: 8px 12px !important;
+            border-radius: 8px !important;
+            font-size: 12px !important;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center; padding: 40px 20px; color: var(--text-muted);
+        }
+        .empty-state i { font-size: 40px; margin-bottom: 16px; opacity: 0.3; }
+
+        /* Alert */
+        .alert-custom {
+            background: var(--accent-glow-green);
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-weight: 600;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         
-        /* Badges & Buttons */
-        .badge-type { padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: 800; }
-        .bg-masuk { background: #e8f5e9; color: #2e7d32; }
-        .bg-keluar { background: #ffebee; color: #c62828; }
-
-        .btn-orange { 
-            background: var(--smk-orange); 
-            color: #fff; 
-            border: none; 
-            border-radius: 12px; 
-            font-weight: 700; 
-            transition: 0.3s;
+        /* Responsive adjustments for Mobile */
+        @media (max-width: 768px) {
+            .stat-grid { grid-template-columns: 1fr; }
+            .action-group { opacity: 1; } /* Always show on mobile since there's no hover */
+            .custom-table td:first-child, .custom-table td:last-child { border-radius: 0; }
+            .custom-table td { border-left: 1px solid var(--border) !important; border-right: 1px solid var(--border) !important; }
         }
-        .btn-orange:hover { background: #e65c00; transform: translateY(-2px); }
-
-        .form-control-sm, .form-select-sm { 
-            border-radius: 10px; 
-            padding: 10px; 
-            border: 1px solid #eee;
-            background-color: #fcfcfc;
-        }
-
-        /* Alerts */
-        .alert { border-radius: 12px; border: none; font-weight: 600; }
     </style>
 </head>
 <body>
 
-<nav class="navbar shadow-sm">
-    <div class="container-fluid px-3">
-        <a class="navbar-brand" href="#">
-            <img src="https://tb-xiirpl1-24.vercel.app/icon/rpl.png" alt="Logo" class="logo-img">
+<nav class="navbar fixed-top shadow-sm">
+    <div class="container">
+        <a class="navbar-brand d-flex align-items-center text-decoration-none" href="/">
+            <img src="https://thi-web6.github.io/resume/images/tarunabangsaicon.png" class="logo-img" alt="Logo"
+                 onerror="this.src='https://ui-avatars.com/api/?name=UP&background=0f172a&color=fff&bold=true'">
             <div>
-                <span class="d-block">Unit Produksi</span>
-                <span class="text-muted small fw-normal">SMK Taruna Bangsa</span>
+                <div style="font-weight: 800; font-size: 15px; color: var(--text-main); letter-spacing: -0.5px;">Keuangan Unit Produksi</div>
+                <div style="font-size: 11px; color: var(--text-muted); font-weight: 500;">SMK Taruna Bangsa</div>
             </div>
         </a>
     </div>
 </nav>
 
-<div class="container-fluid px-3 pt-3">
+<div class="container pb-5">
 
     @if(session('success'))
-        <div class="alert alert-success py-2 mb-3 small">{{ session('success') }}</div>
-    @endif
-    @if($errors->any())
-        <div class="alert alert-danger py-2 mb-3 small">{{ $errors->first() }}</div>
-    @endif
-    
-    <div class="stat-container mb-2">
-        <div class="stat-card border-income">
-            <p class="stat-label">Total Masuk</p>
-            <p class="stat-value text-success">Rp{{ number_format($totalIncome, 0, ',', '.') }}</p>
+        <div class="alert-custom mb-3">
+            <i class="fas fa-check-circle"></i> {{ session('success') }}
         </div>
-        <div class="stat-card border-expense">
-            <p class="stat-label">Total Keluar</p>
-            <p class="stat-value text-danger">Rp{{ number_format($totalExpense, 0, ',', '.') }}</p>
+    @endif
+
+    <!-- Stats Bento Grid -->
+    <div class="stat-grid">
+        <div class="stat-card income">
+            <div class="stat-label">Total Masuk</div>
+            <div class="stat-value" style="color: var(--accent-green);">Rp {{ number_format($totalIncome, 0, ',', '.') }}</div>
         </div>
-        <div class="stat-card border-balance">
-            <p class="stat-label">Sisa Saldo</p>
-            <p class="stat-value" style="color: var(--smk-orange);">Rp{{ number_format($balance, 0, ',', '.') }}</p>
+        <div class="stat-card expense">
+            <div class="stat-label">Total Keluar</div>
+            <div class="stat-value" style="color: var(--accent-red);">Rp {{ number_format($totalExpense, 0, ',', '.') }}</div>
+        </div>
+        <div class="stat-card balance">
+            <div class="stat-label">Sisa Saldo</div>
+            <div class="stat-value" style="color: var(--primary);">Rp {{ number_format($balance, 0, ',', '.') }}</div>
         </div>
     </div>
 
+    <!-- Form Input -->
     <div class="main-box">
-        <h6 class="section-title">
-            <span style="color: var(--smk-orange)"><i class="fas fa-plus-circle me-1"></i> Catat Transaksi</span>
-        </h6>
+        <div class="section-title"><i class="fas fa-plus-circle" style="color: var(--accent-green);"></i> Tambah Transaksi Baru</div>
         <form action="/store" method="POST">
             @csrf
-            <div class="row g-2">
-                <div class="col-12">
-                    <input type="text" name="description" class="form-control form-control-sm" placeholder="Keterangan transaksi..." required>
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <label class="form-label-custom">Keterangan</label>
+                    <input type="text" name="description" class="form-control" placeholder="Contoh: Pembelian ATK" required>
                 </div>
-                <div class="col-7">
-                    <input type="number" name="amount" class="form-control form-control-sm" placeholder="Nominal (Max 1M)" max="1000000000" required>
+                <div class="col-md-4">
+                    <label class="form-label-custom">Nominal (Rp)</label>
+                    <input type="number" name="amount" class="form-control" placeholder="0" id="amount" required>
                 </div>
-                <div class="col-5">
-                    <select name="type" class="form-select form-select-sm">
-                        <option value="income">Masuk</option>
-                        <option value="expense">Keluar</option>
+                <div class="col-md-3">
+                    <label class="form-label-custom">Jenis</label>
+                    <select name="type" class="form-select">
+                        <option value="income">Pemasukan</option>
+                        <option value="expense">Pengeluaran</option>
                     </select>
                 </div>
-                <div class="col-12 mt-2">
-                    <button type="submit" class="btn btn-orange w-100 py-2">
-                        Simpan Data
+                <div class="col-12">
+                    <button type="submit" class="btn-save">
+                        <i class="fas fa-add"></i> Simpan ke Database
                     </button>
                 </div>
             </div>
         </form>
     </div>
 
+    <!-- Top 3 Expense Leaderboard -->
+    @if($topExpense->count() > 0)
     <div class="main-box">
-        <h6 class="section-title">
-            <span><i class="fas fa-chart-line me-1 text-danger"></i> Pengeluaran Terbesar</span>
-        </h6>
+        <div class="section-title"><i class="bi bi-graph-up" style="color: red; box-shadow: 0px 0px  2px red"></i> Pengeluaran Terbesar</div>
         <div class="expense-list">
-            @forelse($topExpense as $exp)
-                <div class="expense-item">
-                    <div class="expense-info">
-                        <div class="expense-icon"><i class="fas fa-shopping-bag"></i></div>
-                        <div>
-                            <div class="fw-bold" style="font-size: 12px;">{{ Str::limit($exp->description, 20) }}</div>
-                            <div class="text-muted" style="font-size: 10px;">Total akumulasi</div>
-                        </div>
+            @foreach($topExpense as $index => $exp)
+                <div class="expense-card rank-{{ $index + 1 }}">
+                    <div class="rank-num">{{ str_pad($index + 1, 2, '0', STR_PAD_LEFT) }}</div>
+                    <div class="flex-grow-1">
+                        <div class="fw-bold" style="font-size: 13px;">{{ Str::limit($exp->description, 25) }}</div>
+                        <div class="text-muted" style="font-size: 10px;">Total akumulasi</div>
                     </div>
-                    <div class="fw-bold text-danger">
-                        Rp{{ number_format($exp->total, 0, ',', '.') }}
+                    <div class="fw-800 text-danger" style="font-size: 14px;">
+                        Rp {{ number_format($exp->total, 0, ',', '.') }}
                     </div>
                 </div>
-            @empty
-                <div class="text-center py-3 text-muted small">Belum ada data pengeluaran.</div>
-            @endforelse
+            @endforeach
         </div>
     </div>
+    @endif
 
+    <!-- Riwayat Transaksi -->
     <div class="main-box">
-        <div class="section-title">
-            <span><i class="fas fa-history me-1"></i> Riwayat</span>
-            <div class="d-flex gap-1">
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <div class="section-title mb-0"><i class="fas fa-clock-rotate-left"></i> Riwayat Transaksi</div>
+            <div class="d-flex gap-2 align-items-center">
                 <form action="/" method="GET">
-                    <input type="month" name="filter_month" class="form-control form-control-sm" 
-                           style="width: 105px; font-size: 11px;" 
-                           value="{{ request('filter_month', date('Y-m')) }}" 
-                           onchange="this.form.submit()">
+                    <input type="month" name="filter_month" class="form-control form-control-sm" style="border-radius:10px; font-size:12px; width: auto;" value="{{ request('filter_month', date('Y-m')) }}" onchange="this.form.submit()">
                 </form>
-                <form action="/export" method="GET">
-                    <input type="hidden" name="month" value="{{ request('filter_month') }}">
-                    <button type="submit" class="btn btn-success btn-sm rounded-3 px-2">
-                        <i class="fas fa-file-excel"></i>
-                    </button>
-                </form>
+                <a href="/export?month={{ request('filter_month') }}" class="btn btn-outline-dark btn-sm" style="border-radius:10px; font-weight:600;">
+                    <i class="fas fa-file-excel me-1"></i> Excel
+                </a>
             </div>
         </div>
 
-        <div class="table-responsive-custom">
-            <table class="table align-middle">
+        <div class="table-container">
+            <table class="custom-table">
                 <thead>
                     <tr>
-                        <th>Detail Transaksi</th>
-                        <th class="text-end">Nominal</th>
-                        <th width="30"></th>
+                        <th>Tanggal</th>
+                        <th>Keterangan</th>
+                        <th>Status</th>
+                        <th class="text-end">Jumlah</th>
+                        <th width="80"></th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($transactions as $t)
-                    <tr>
+                    <!-- Normal Row -->
+                    <tr id="row-{{ $t->id }}">
+                        <td style="font-size: 12px; color: var(--text-muted); white-space: nowrap;">{{ $t->created_at->format('d M Y') }}</td>
+                        <td class="fw-bold" style="font-size: 13px;">{{ $t->description }}</td>
                         <td>
-                            <div class="fw-bold text-dark">{{ $t->description }}</div>
-                            <div class="text-muted" style="font-size: 10px; margin-top: 2px;">
-                                {{ $t->created_at->format('d M Y') }} • 
-                                <span class="badge-type {{ $t->type == 'income' ? 'bg-masuk' : 'bg-keluar' }}">
-                                    {{ $t->type == 'income' ? 'MASUK' : 'KELUAR' }}
-                                </span>
-                            </div>
+                            <span class="badge-status {{ $t->type == 'income' ? 'bg-income' : 'bg-expense' }}">
+                                {{ $t->type == 'income' ? 'PEMASUKAN' : 'PENGELUARAN' }}
+                            </span>
                         </td>
-                        <td class="text-end fw-bold {{ $t->type == 'income' ? 'text-success' : 'text-danger' }}">
-                            {{ number_format($t->amount, 0, ',', '.') }}
+                        <td class="text-end fw-extrabold" style="font-size: 14px; letter-spacing: -0.3px;">
+                            Rp {{ number_format($t->amount, 0, ',', '.') }}
                         </td>
                         <td class="text-end">
-                            <form action="/delete/{{ $t->id }}" method="POST">
-                                @csrf @method('DELETE')
-                                <button class="btn btn-link text-muted p-0" onclick="return confirm('Hapus data ini?')">
-                                    <i class="fas fa-trash-alt" style="font-size: 14px;"></i>
+                            <div class="action-group d-inline-flex gap-1">
+                                <button class="btn-icon" onclick="toggleEdit({{ $t->id }})" title="Edit">
+                                    <i class="fas fa-pen-to-square fa-sm"></i>
                                 </button>
-                            </form>
+                                <form action="/delete/{{ $t->id }}" method="POST" style="display:inline;">
+                                    @csrf @method('DELETE')
+                                    <button class="btn-icon delete" onclick="return confirm('Yakin hapus data ini?')" title="Hapus">
+                                        <i class="fas fa-trash fa-sm"></i>
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
+                    <!-- Smooth Edit Row (Placed outside <tr> using wrapper logic via JS) -->
                     @empty
                     <tr>
-                        <td colspan="3" class="text-center py-5 text-muted">
-                            <i class="fas fa-folder-open d-block mb-2 shadow-sm" style="font-size: 24px;"></i>
-                            Data tidak ditemukan.
+                        <td colspan="5">
+                            <div class="empty-state">
+                                <i class="fas fa-receipt d-block"></i>
+                                <div class="fw-bold">Belum Ada Transaksi</div>
+                                <div style="font-size: 12px; margin-top: 4px;">Mulai catat keuanganmu di form atas.</div>
+                            </div>
                         </td>
                     </tr>
                     @endforelse
                 </tbody>
             </table>
+            
+            <!-- Hidden Edit Forms (Rendered outside table to prevent table breakage) -->
+            @foreach($transactions as $t)
+            <div id="edit-{{ $t->id }}" class="edit-wrapper">
+                <form action="/update/{{ $t->id }}" method="POST">
+                    @csrf @method('PUT')
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-5">
+                            <input type="text" name="description" class="form-control edit-form-control" value="{{ $t->description }}" required>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="number" name="amount" class="form-control edit-form-control" value="{{ $t->amount }}" required>
+                        </div>
+                        <div class="col-md-2">
+                            <select name="type" class="form-select edit-form-control">
+                                <option value="income" {{ $t->type == 'income' ? 'selected' : '' }}>Masuk</option>
+                                <option value="expense" {{ $t->type == 'expense' ? 'selected' : '' }}>Keluar</option>
+                            </select>
+                        </div>
+                        <div class="col-md-1 d-flex gap-1">
+                            <button type="submit" class="btn btn-sm btn-dark flex-fill" style="border-radius:8px; padding: 6px;"><i class="fas fa-check"></i></button>
+                            <button type="button" class="btn btn-sm btn-light flex-fill border" style="border-radius:8px; padding: 6px;" onclick="toggleEdit({{ $t->id }})"><i class="fas fa-xmark"></i></button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            @endforeach
         </div>
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const input = document.getElementById('amount');
+
+    input.addEventListener('input', function(e){
+        let value = this.value.replace(/[^0-9]/g,'');
+        this.value = new Intl.NumberFormat('id-ID').format(value);
+    });
+
+    // Fungsi toggle edit dengan animasi smooth
+    function toggleEdit(id) {
+        const normalRow = document.getElementById(`row-${id}`);
+        const editWrapper = document.getElementById(`edit-${id}`);
+        
+        if (editWrapper.classList.contains('active')) {
+            // Close animation
+            editWrapper.classList.remove('active');
+            normalRow.style.display = 'table-row';
+        } else {
+            // Open animation
+            normalRow.style.display = 'none';
+            editWrapper.classList.add('active');
+            
+            // Fokus ke input pertama setelah animasi mulai
+            setTimeout(() => {
+                editWrapper.querySelector('input').focus();
+            }, 150);
+        }
+    }
+</script>
+
 </body>
 </html>
