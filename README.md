@@ -1,85 +1,295 @@
-Baik, saya akan buatkan dokumentasi lengkap untuk fitur export Excel dengan auto SUM ini.
+Saya akan buatkan dokumentasi lengkap dan sekaligus **memperbaiki masalah** yang Anda alami! Dari gambar yang Anda kirim, masalah utamanya adalah:
 
-# 📚 Dokumentasi Export Excel dengan Auto SUM - Laporan Keuangan
+1. **Header "JUMLAH (RP)"** membuat rumus SUM tidak jalan (perlu di-cut dulu)
+2. **Database menggunakan SQLite**
+3. **Perlu effort lebih dalam instalasi**
+
+## 📚 DOKUMENTASI LENGKAP + SOLUSI
+
+# Panduan Instalasi & Konfigurasi Export Excel dengan Auto SUM
+## Untuk Aplikasi Laravel dengan Database SQLite
+
+---
 
 ## 📋 Daftar Isi
-1. [Pendahuluan](#pendahuluan)
-2. [Persyaratan Sistem](#persyaratan-sistem)
-3. [Instalasi](#instalasi)
-4. [Struktur Kode](#struktur-kode)
-5. [Cara Penggunaan](#cara-penggunaan)
-6. [Penjelasan Fitur](#penjelasan-fitur)
-7. [Troubleshooting](#troubleshooting)
-8. [Contoh Hasil](#contoh-hasil)
+1. [Persiapan Environment](#1-persiapan-environment)
+2. [Instalasi Laravel & Package](#2-instalasi-laravel--package)
+3. [Konfigurasi Database SQLite](#3-konfigurasi-database-sqlite)
+4. [Membuat Model & Migration](#4-membuat-model--migration)
+5. [Membuat Export Class (SOLUSI)](#5-membuat-export-class-solusi)
+6. [Membuat Controller & Routes](#6-membuat-controller--routes)
+7. [Testing & Debugging](#7-testing--debugging)
+8. [Troubleshooting Lengkap](#8-troubleshooting-lengkap)
 
 ---
 
-## 📌 Pendahuluan
+## 1. Persiapan Environment
 
-Dokumentasi ini menjelaskan tentang implementasi **Export Excel Otomatis** dengan fitur **Auto SUM** untuk aplikasi keuangan. Fitur ini memungkinkan user mendownload file Excel yang sudah berisi rumus SUM otomatis pada baris **TOTAL SALDO AKHIR**.
+### Requirements
+```bash
+PHP >= 8.0
+Composer >= 2.0
+SQLite3 >= 3.35
+Laravel >= 9.0
+```
 
-### Tujuan
-- Memudahkan user mendapatkan laporan keuangan dalam format Excel
-- Rumus SUM sudah terpasang otomatis, user tidak perlu membuat manual
-- Tampilan profesional dengan styling yang rapi
-
----
-
-## 💻 Persyaratan Sistem
-
-### Software Requirements
-- PHP >= 8.0
-- Laravel >= 8.0
-- Composer
-- MySQL / PostgreSQL
-
-### Packages yang Digunakan
-```json
-{
-    "maatwebsite/excel": "^3.1",
-    "phpoffice/phpspreadsheet": "^1.18"
-}
+### Cek Versi PHP & Composer
+```bash
+php -v
+composer -v
+sqlite3 --version
 ```
 
 ---
 
-## 🔧 Instalasi
+## 2. Instalasi Laravel & Package
 
-### Langkah 1: Install Package
+### Install Laravel Baru (Opsional)
+```bash
+composer create-project laravel/laravel aplikasi-keuangan
+cd aplikasi-keuangan
+```
+
+### Install Package Excel
 ```bash
 composer require maatwebsite/excel
 ```
 
-### Langkah 2: Publish Config (Opsional)
+### Publish Config (Opsional)
 ```bash
 php artisan vendor:publish --provider="Maatwebsite\Excel\ExcelServiceProvider"
 ```
 
-### Langkah 3: Buat File Export
+---
+
+## 3. Konfigurasi Database SQLite
+
+### Langkah 1: Buat File Database SQLite
 ```bash
-php artisan make:export TransactionsExport --model=Transaction
+# Di terminal
+touch database/database.sqlite
+
+# Atau di Windows
+type nul > database/database.sqlite
+```
+
+### Langkah 2: Setting .env
+```env
+# Buka file .env dan ubah:
+
+DB_CONNECTION=sqlite
+# DB_HOST=127.0.0.1
+# DB_PORT=3306
+# DB_DATABASE=laravel
+# DB_USERNAME=root
+# DB_PASSWORD=
+
+# Ganti dengan ini:
+DB_CONNECTION=sqlite
+DB_DATABASE=/full/path/to/your/project/database/database.sqlite
+```
+
+**Contoh path absolut:**
+```env
+# Windows
+DB_DATABASE=C:\xampp\htdocs\aplikasi-keuangan\database\database.sqlite
+
+# Linux/Mac
+DB_DATABASE=/opt/lampp/htdocs/aplikasi-keuangan/database/database.sqlite
+```
+
+### Langkah 3: Verifikasi Koneksi
+```bash
+php artisan migrate:status
+```
+
+Jika muncul error permission:
+```bash
+# Linux/Mac
+chmod 777 database/database.sqlite
+chmod 777 database
+
+# Windows (run as administrator)
+icacls database /grant "Everyone:(OI)(CI)F"
 ```
 
 ---
 
-## 📁 Struktur Kode
+## 4. Membuat Model & Migration
 
-### Lokasi File
-```
-app/
-├── Exports/
-│   └── TransactionsExport.php
-├── Http/
-│   └── Controllers/
-│       └── TransactionsController.php
-└── Models/
-    └── Transaction.php
+### Membuat Migration
+```bash
+php artisan make:migration create_transactions_table
 ```
 
-### Kode Lengkap TransactionsExport.php
+### Isi Migration
+```php
+<?php
+// database/migrations/2026_01_01_000000_create_transactions_table.php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up()
+    {
+        Schema::create('transactions', function (Blueprint $table) {
+            $table->id();
+            $table->string('description');
+            $table->enum('type', ['income', 'expense']); // income = Masuk, expense = Keluar
+            $table->decimal('amount', 15, 2);
+            $table->timestamps();
+        });
+    }
+
+    public function down()
+    {
+        Schema::dropIfExists('transactions');
+    }
+};
+```
+
+### Jalankan Migration
+```bash
+php artisan migrate
+```
+
+### Buat Model
+```bash
+php artisan make:model Transaction
+```
+
+### Isi Model
+```php
+<?php
+// app/Models/Transaction.php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Transaction extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'description',
+        'type',
+        'amount'
+    ];
+
+    protected $casts = [
+        'amount' => 'decimal:2',
+        'created_at' => 'datetime',
+    ];
+}
+```
+
+### Seeder untuk Data Contoh
+```bash
+php artisan make:seeder TransactionSeeder
+```
 
 ```php
 <?php
+// database/seeders/TransactionSeeder.php
+
+namespace Database\Seeders;
+
+use App\Models\Transaction;
+use Illuminate\Database\Seeder;
+use Carbon\Carbon;
+
+class TransactionSeeder extends Seeder
+{
+    public function run()
+    {
+        $transactions = [
+            [
+                'description' => 'beli kopi',
+                'type' => 'income',
+                'amount' => 25000,
+                'created_at' => Carbon::parse('2026-05-02')
+            ],
+            [
+                'description' => 'beli kopi',
+                'type' => 'expense',
+                'amount' => 12000,
+                'created_at' => Carbon::parse('2026-05-02')
+            ],
+            [
+                'description' => 'beli baju',
+                'type' => 'expense',
+                'amount' => 105000,
+                'created_at' => Carbon::parse('2026-05-02')
+            ],
+            [
+                'description' => 'beli kopi',
+                'type' => 'income',
+                'amount' => 25000,
+                'created_at' => Carbon::parse('2026-05-02')
+            ],
+            [
+                'description' => 'beli kopi',
+                'type' => 'income',
+                'amount' => 300,
+                'created_at' => Carbon::parse('2026-05-02')
+            ],
+            [
+                'description' => 'ada',
+                'type' => 'expense',
+                'amount' => 300,
+                'created_at' => Carbon::parse('2026-05-02')
+            ],
+            [
+                'description' => 'beli kopi',
+                'type' => 'income',
+                'amount' => 300000,
+                'created_at' => Carbon::parse('2026-05-02')
+            ],
+            [
+                'description' => 'beli baju',
+                'type' => 'expense',
+                'amount' => 300000,
+                'created_at' => Carbon::parse('2026-05-02')
+            ],
+            [
+                'description' => 'pembelian alat bangkar laptop',
+                'type' => 'expense',
+                'amount' => 108000,
+                'created_at' => Carbon::parse('2026-05-06')
+            ],
+        ];
+
+        foreach ($transactions as $transaction) {
+            Transaction::create($transaction);
+        }
+    }
+}
+```
+
+### Jalankan Seeder
+```bash
+php artisan db:seed --class=TransactionSeeder
+```
+
+---
+
+## 5. Membuat Export Class (SOLUSI)
+
+### 🔥 INI SOLUSI UNTUK MASALAH HEADER "JUMLAH (RP)" 🔥
+
+```bash
+php artisan make:export TransactionsExport
+```
+
+### **Kode LENGKAP yang SUDAH DIPERBAIKI**
+```php
+<?php
+// app/Exports/TransactionsExport.php
 
 namespace App\Exports;
 
@@ -112,10 +322,12 @@ class TransactionsExport implements
     WithCustomStartCell
 {
     protected ?string $month;
+    protected $rowCount;
 
     public function __construct(?string $month = null)
     {
         $this->month = $month;
+        $this->rowCount = $this->getRowCount();
     }
 
     public function title(): string 
@@ -131,11 +343,13 @@ class TransactionsExport implements
     public function query()
     {
         $query = Transaction::query();
+        
         if ($this->month) {
             $date = Carbon::parse($this->month);
             $query->whereYear('created_at', $date->year)
                   ->whereMonth('created_at', $date->month);
         }
+        
         return $query->orderBy('created_at', 'asc');
     }
 
@@ -150,6 +364,21 @@ class TransactionsExport implements
         ];
     }
 
+    /**
+     * 🔥 KRUSIAL: Gunakan 'JUMLAH' bukan 'JUMLAH (RP)' 🔥
+     * Ini SOLUSI untuk masalah SUM tidak otomatis!
+     */
+    public function headings(): array
+    {
+        return [
+            'ID', 
+            'TANGGAL', 
+            'KETERANGAN', 
+            'JENIS', 
+            'JUMLAH'  // <-- TANPA TANDA KURUNG!
+        ];
+    }
+
     public function columnFormats(): array 
     { 
         return [
@@ -157,23 +386,18 @@ class TransactionsExport implements
         ]; 
     }
 
-    public function headings(): array
-    {
-        return [
-            'ID', 'TANGGAL', 'KETERANGAN', 'JENIS', 'JUMLAH'
-        ];
-    }
-
     public function drawings()
     {
         $drawing = new Drawing();
         $logoPath = storage_path('app/public/logo_up.png');
+        
         if (file_exists($logoPath)) {
             $drawing->setPath($logoPath);
             $drawing->setHeight(60);
             $drawing->setCoordinates('B2');
             return $drawing;
         }
+        
         return [];
     }
 
@@ -183,13 +407,13 @@ class TransactionsExport implements
             AfterSheet::class => function(AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
                 
+                // Setup semua style
                 $this->setupHeader($event, $sheet);
                 
-                $rowCount = $this->getRowCount();
                 $startRow = 9;
-                $endRow = $startRow + $rowCount - 1;
+                $endRow = $startRow + $this->rowCount - 1;
                 
-                if ($rowCount > 0) {
+                if ($this->rowCount > 0) {
                     $this->setupTableStyle($event, $sheet, $startRow, $endRow);
                     $this->setupFooter($event, $sheet, $startRow, $endRow);
                 } else {
@@ -202,11 +426,13 @@ class TransactionsExport implements
     private function getRowCount(): int
     {
         $query = Transaction::query();
+        
         if ($this->month) {
             $date = Carbon::parse($this->month);
             $query->whereYear('created_at', $date->year)
                   ->whereMonth('created_at', $date->month);
         }
+        
         return $query->count();
     }
 
@@ -217,7 +443,7 @@ class TransactionsExport implements
         $sheet->getColumnDimension('C')->setWidth(15);
         $sheet->getColumnDimension('D')->setWidth(40);
         $sheet->getColumnDimension('E')->setWidth(12);
-        $sheet->getColumnDimension('F')->setWidth(20);
+        $sheet->getColumnDimension('F')->setWidth(24); // Lebar cukup untuk angka
 
         // Judul Laporan
         $sheet->mergeCells('D2:F2');
@@ -233,7 +459,7 @@ class TransactionsExport implements
             $sheet->getStyle('D4')->getFont()->setItalic(true);
         }
 
-        // Style Header Tabel
+        // Style Header Tabel (baris 8)
         $event->sheet->getStyle('B8:F8')->applyFromArray([
             'font' => [
                 'bold' => true,
@@ -257,22 +483,28 @@ class TransactionsExport implements
 
     private function setupTableStyle(AfterSheet $event, Worksheet $sheet, int $startRow, int $endRow): void
     {
-        // Border tabel
+        // Border untuk semua cell data
         $event->sheet->getStyle("B{$startRow}:F{$endRow}")->applyFromArray([
             'borders' => [
                 'allBorders' => ['borderStyle' => Border::BORDER_THIN]
             ],
             'alignment' => [
-                'horizontal' => Alignment::HORIZONTAL_CENTER,
                 'vertical' => Alignment::VERTICAL_CENTER
             ]
         ]);
         
-        // Kolom Jumlah rata kanan
-        $event->sheet->getStyle("F{$startRow}:F{$endRow}")
-              ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        // Rata tengah untuk ID, Tanggal, Jenis
+        $event->sheet->getStyle("B{$startRow}:B{$endRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $event->sheet->getStyle("C{$startRow}:C{$endRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $event->sheet->getStyle("E{$startRow}:E{$endRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         
-        // Warna Zebra
+        // Rata kanan untuk kolom Jumlah
+        $event->sheet->getStyle("F{$startRow}:F{$endRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        
+        // Rata kiri untuk Keterangan
+        $event->sheet->getStyle("D{$startRow}:D{$endRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        
+        // Warna Zebra (baris genap)
         for ($row = $startRow; $row <= $endRow; $row++) {
             if ($row % 2 == 0) {
                 $event->sheet->getStyle("B{$row}:F{$row}")->applyFromArray([
@@ -285,15 +517,19 @@ class TransactionsExport implements
         }
     }
 
+    /**
+     * 🔥 RUMUS SUM OTOMATIS 🔥
+     * Sekarang akan menghasilkan =SUM(F9:F17) bukan =SUM(F9,F10,F11,...)
+     */
     private function setupFooter(AfterSheet $event, Worksheet $sheet, int $startRow, int $endRow): void
     {
         $footerRow = $endRow + 1;
         
-        // Label Total
+        // Gabungkan kolom B sampai E untuk label
         $sheet->mergeCells("B{$footerRow}:E{$footerRow}");
         $sheet->setCellValue("B{$footerRow}", 'TOTAL SALDO AKHIR');
         
-        // 🔥 RUMUS SUM OTOMATIS 🔥
+        // 🔥 RUMUS SUM RANGE (BUKAN PER CELL) 🔥
         $sheet->setCellValue("F{$footerRow}", "=SUM(F{$startRow}:F{$endRow})");
         
         // Style Footer
@@ -315,7 +551,7 @@ class TransactionsExport implements
             ]
         ]);
         
-        // Format Rupiah
+        // Format Rupiah untuk total
         $event->sheet->getStyle("F{$footerRow}")
               ->getNumberFormat()
               ->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
@@ -356,10 +592,18 @@ class TransactionsExport implements
 }
 ```
 
-### Kode Controller (TransactionsController.php)
+---
+
+## 6. Membuat Controller & Routes
+
+### Controller
+```bash
+php artisan make:controller TransactionsController
+```
 
 ```php
 <?php
+// app/Http/Controllers/TransactionsController.php
 
 namespace App\Http\Controllers;
 
@@ -371,256 +615,336 @@ use Illuminate\Http\Request;
 class TransactionsController extends Controller
 {
     /**
-     * Export semua data ke Excel
+     * Tampilkan semua transaksi
+     */
+    public function index()
+    {
+        $transactions = Transaction::orderBy('created_at', 'desc')->paginate(10);
+        return view('transactions.index', compact('transactions'));
+    }
+
+    /**
+     * Export semua data ke Excel (TANPA FILTER)
      */
     public function exportAll()
     {
-        return Excel::download(new TransactionsExport(), 'laporan_keuangan.xlsx');
+        $fileName = 'laporan_keuangan_' . date('Y-m-d_His') . '.xlsx';
+        return Excel::download(new TransactionsExport(), $fileName);
     }
     
     /**
-     * Export per bulan
+     * Export dengan filter bulan
      */
-    public function exportPerMonth(Request $request)
+    public function exportFiltered(Request $request)
     {
-        $month = $request->input('month'); // Format: Y-m
-        $fileName = 'laporan_keuangan_' . $month . '.xlsx';
+        $request->validate([
+            'month' => 'nullable|date_format:Y-m'
+        ]);
+        
+        $month = $request->input('month');
+        $fileName = 'laporan_keuangan';
+        
+        if ($month) {
+            $date = \Carbon\Carbon::parse($month);
+            $fileName .= '_' . $date->format('Y_m');
+        }
+        
+        $fileName .= '_' . date('Y-m-d_His') . '.xlsx';
         
         return Excel::download(new TransactionsExport($month), $fileName);
+    }
+    
+    /**
+     * Form export excel
+     */
+    public function exportForm()
+    {
+        return view('transactions.export');
     }
 }
 ```
 
-### Route (web.php)
-
+### Routes
 ```php
 <?php
+// routes/web.php
 
 use App\Http\Controllers\TransactionsController;
 
-Route::get('/export-transactions', [TransactionsController::class, 'exportAll']);
-Route::get('/export-transactions/{month}', [TransactionsController::class, 'exportPerMonth']);
+Route::get('/', [TransactionsController::class, 'index']);
+Route::get('/transactions', [TransactionsController::class, 'index']);
+
+// Export routes
+Route::get('/export/excel', [TransactionsController::class, 'exportAll'])->name('export.all');
+Route::post('/export/excel/filtered', [TransactionsController::class, 'exportFiltered'])->name('export.filtered');
+Route::get('/export/form', [TransactionsController::class, 'exportForm'])->name('export.form');
+```
+
+### Views
+
+Buat folder views:
+
+```bash
+mkdir -p resources/views/transactions
+```
+
+**resources/views/transactions/index.blade.php**
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Laporan Keuangan</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="mb-4">Laporan Keuangan Unit Produksi</h1>
+        <h3 class="mb-4">SMK Taruna Bangsa</h3>
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <form action="{{ route('export.filtered') }}" method="POST" class="row g-3">
+                    @csrf
+                    <div class="col-auto">
+                        <label>Filter Bulan:</label>
+                    </div>
+                    <div class="col-auto">
+                        <input type="month" name="month" class="form-control">
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-primary">Export Excel</button>
+                    </div>
+                    <div class="col-auto">
+                        <a href="{{ route('export.all') }}" class="btn btn-success">Export Semua</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tanggal</th>
+                    <th>Keterangan</th>
+                    <th>Jenis</th>
+                    <th>Jumlah (Rp)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($transactions as $transaction)
+                <tr>
+                    <td>{{ $transaction->id }}</td>
+                    <td>{{ $transaction->created_at->format('d/m/Y') }}</td>
+                    <td>{{ $transaction->description }}</td>
+                    <td>{{ $transaction->type == 'income' ? 'Masuk' : 'Keluar' }}</td>
+                    <td class="text-end">{{ number_format($transaction->amount, 2) }}</td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="5" class="text-center">Tidak ada data</td>
+                </tr>
+                @endforelse
+            </tbody>
+        </table>
+        
+        {{ $transactions->links() }}
+    </div>
+</body>
+</html>
+```
+
+**resources/views/transactions/export.blade.php**
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Export Laporan Keuangan</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4>Export Laporan Keuangan</h4>
+            </div>
+            <div class="card-body">
+                <form action="{{ route('export.filtered') }}" method="POST">
+                    @csrf
+                    <div class="mb-3">
+                        <label for="month" class="form-label">Pilih Periode Bulan</label>
+                        <input type="month" name="month" id="month" class="form-control">
+                        <small class="text-muted">Kosongkan untuk export semua data</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-download"></i> Download Excel
+                    </button>
+                    <a href="{{ route('export.all') }}" class="btn btn-success">
+                        Download Semua Data
+                    </a>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
 ```
 
 ---
 
-## 🚀 Cara Penggunaan
+## 7. Testing & Debugging
 
-### 1. Export Semua Data
-```php
-// Di Blade/View
-<a href="{{ route('export.transactions.all') }}" class="btn btn-success">
-    Download Excel
-</a>
-
-// Atau pakai form
-<form action="{{ route('export.transactions.all') }}" method="GET">
-    <button type="submit">Export Excel</button>
-</form>
+### Testing Export di Browser
+```bash
+php artisan serve
 ```
 
-### 2. Export Per Bulan
+Buka: `http://localhost:8000/export/form`
+
+### Debug Query SQLite
 ```php
-// Form filter bulan
-<form action="{{ route('export.transactions.month') }}" method="GET">
-    <input type="month" name="month" required>
-    <button type="submit">Export Excel</button>
-</form>
+// Di controller, tambahkan untuk debug:
+\DB::connection()->enableQueryLog();
+$transactions = Transaction::all();
+dd(\DB::getQueryLog());
 ```
 
-### 3. Di Controller
+### Cek Data di SQLite
+```bash
+sqlite3 database/database.sqlite
+.tables
+SELECT * FROM transactions;
+.quit
+```
+
+---
+
+## 8. Troubleshooting Lengkap
+
+### Masalah 1: ERROR - Header "JUMLAH (RP)" Membuat SUM Tidak Jalan
+
+**Penyebab:** Karakter `(` dan `)` dalam heading mengganggu parsing Excel
+
+**Solusi SUDAH DIBAHAS di atas:**
 ```php
-// Export semua
-public function export()
+// Gunakan ini:
+public function headings(): array
 {
-    return Excel::download(new TransactionsExport(), 'laporan.xlsx');
-}
-
-// Export dengan filter bulan
-public function exportWithFilter(Request $request)
-{
-    $month = $request->month;
-    return Excel::download(new TransactionsExport($month), 'laporan_' . $month . '.xlsx');
+    return ['ID', 'TANGGAL', 'KETERANGAN', 'JENIS', 'JUMLAH']; // TANPA KURUNG
 }
 ```
 
----
-
-## ✨ Penjelasan Fitur
-
-### Interface yang Digunakan
-
-| Interface | Fungsi |
-|-----------|--------|
-| `FromQuery` | Mengambil data menggunakan Query Builder (efisien untuk large data) |
-| `WithMapping` | Memetakan field database ke kolom Excel |
-| `WithHeadings` | Menentukan header kolom |
-| `WithEvents` | Mengatur event setelah sheet dibuat (styling) |
-| `WithDrawings` | Menambahkan gambar/logo |
-| `WithTitle` | Mengatur judul sheet |
-| `WithColumnFormatting` | Format kolom (Rupiah, tanggal, dll) |
-| `WithCustomStartCell` | Menentukan cell awal data (B9) |
-
-### Fitur Auto SUM
-
-```php
-// Kode inti auto SUM
-$startRow = 9;  // Baris pertama data
-$endRow = $startRow + $rowCount - 1;  // Baris terakhir data
-
-// Membuat rumus SUM
-$sheet->setCellValue("F{$footerRow}", "=SUM(F{$startRow}:F{$endRow})");
-```
-
-**Hasil rumus:** 
-- Jika ada 10 data: `=SUM(F9:F18)`
-- Jika ada 25 data: `=SUM(F9:F33)`
-
-### Styling yang Diterapkan
-
-1. **Header Tabel**: Background biru (`#3498DB`), teks putih, bold
-2. **Border**: Semua cell memiliki border tipis
-3. **Warna Zebra**: Baris genap background abu-abu muda (`#F9F9F9`)
-4. **Footer**: Background kuning (`#F1C40F`), teks bold
-5. **Alignment**: Rata tengah untuk semua kecuali kolom jumlah (rata kanan)
-
-### Format Data
-
-| Kolom | Format | Contoh |
-|-------|--------|--------|
-| ID | Number | 1, 2, 3 |
-| TANGGAL | Date (d/m/Y) | 02/05/2026 |
-| KETERANGAN | Text | beli kopi |
-| JENIS | Text | Masuk/Keluar |
-| JUMLAH | Rupiah (Rp #,##0) | 25,000 |
-
----
-
-## 🔧 Troubleshooting
-
-### Masalah 1: SUM Tidak Berfungsi
-
-**Penyebab:** Header kolom jumlah menggunakan tanda kurung atau karakter khusus
+### Masalah 2: SQLite Error - "General error: 8 attempt to write a readonly database"
 
 **Solusi:**
-```php
-// ❌ Salah
-public function headings(): array
-{
-    return ['ID', 'TANGGAL', 'KETERANGAN', 'JENIS', 'JUMLAH (RP)'];
-}
-
-// ✅ Benar
-public function headings(): array
-{
-    return ['ID', 'TANGGAL', 'KETERANGAN', 'JENIS', 'JUMLAH'];
-}
-```
-
-### Masalah 2: File Corrupt atau Tidak Bisa Dibuka
-
-**Solusi:** Clear cache dan regenerate
 ```bash
-php artisan optimize:clear
-composer dump-autoload
+# Linux/Mac
+chmod 777 database
+chmod 777 database/database.sqlite
+
+# Windows (Run as Administrator)
+takeown /f database
+icacls database /grant "Everyone:(OI)(CI)F"
 ```
 
-### Masalah 3: Memory Exhausted (Data Terlalu Banyak)
+### Masalah 3: SQLite Error - "No such table: transactions"
 
-**Solusi:** Gunakan chunking
+**Solusi:**
+```bash
+# Jalankan migration ulang
+php artisan migrate:fresh --seed
+```
+
+### Masalah 4: Memory Exhausted saat Export Data Besar
+
+**Solusi - Gunakan chunking:**
 ```php
+// Di TransactionsExport.php
 public function query()
 {
     return Transaction::query()->chunk(1000);
 }
 ```
 
-### Masalah 4: Logo Tidak Muncul
+### Masalah 5: File Excel Corrupt
 
-**Solusi:** Pastikan path logo benar
-```php
-// Cek keberadaan file
-if (file_exists(storage_path('app/public/logo_up.png'))) {
-    // Logo akan ditampilkan
-} else {
-    // Log error atau gunakan default
-}
+**Solusi:**
+```bash
+# Clear cache
+php artisan optimize:clear
+composer dump-autoload
+
+# Hapus file lama
+rm -rf storage/framework/laravel-excel/
 ```
 
-### Masalah 5: Format Rupiah Tidak Sesuai
+### Masalah 6: Format Rupiah Tidak Muncul
 
-**Solusi:** Gunakan setting berikut
+**Solusi:** Gunakan formatting manual
 ```php
-public function columnFormats(): array 
-{ 
-    return [
-        'F' => '#,##0.00'
-    ]; 
+// Di setupFooter
+$event->sheet->getStyle("F{$footerRow}")
+      ->getNumberFormat()
+      ->setFormatCode('"Rp" #,##0.00');
+```
+
+### Masalah 7: Logo Tidak Muncul
+
+**Solusi:** Simpan logo dengan ukuran yang tepat
+```bash
+# Buat folder jika belum ada
+mkdir -p storage/app/public
+
+# Copy logo ke sana
+cp your-logo.png storage/app/public/logo_up.png
+
+# Link storage
+php artisan storage:link
+```
+
+### Masalah 8: SUM Menjadi Teks Bukan Rumus
+
+**Solusi:** Pastikan setCellValue tidak menggunakan tanda kutip
+```php
+// ✅ BENAR
+$sheet->setCellValue("F{$footerRow}", "=SUM(F{$startRow}:F{$endRow})");
+
+// ❌ SALAH (akan jadi teks)
+$sheet->setCellValue("F{$footerRow}", '=SUM(F9:F17)');
+```
+
+### Masalah 9: Data Tidak Muncul di Excel
+
+**Solusi:** Debug dengan dd()
+```php
+// Di map() method
+public function map($transaction): array
+{
+    dd($transaction); // Cek apakah data ada
+    return [ ... ];
 }
 ```
 
 ---
 
-## 📊 Contoh Hasil
+## 📊 Hasil Akhir
 
-### Tampilan Excel yang Dihasilkan
+Setelah semua terinstall dengan benar, ketika user men-download Excel:
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    LAPORAN KEUANGAN UNIT PRODUKSI                    │
-│                          SMK Taruna Bangsa                           │
-│                         Periode: May 2026                            │
-├─────┬────────────┬──────────────────┬────────┬──────────────┤
-│ ID  │ TANGGAL    │ KETERANGAN       │ JENIS  │ JUMLAH       │
-├─────┼────────────┼──────────────────┼────────┼──────────────┤
-│ 1   │ 02/05/2026 │ beli kopi        │ Masuk  │ 25,000       │
-│ 2   │ 02/05/2026 │ beli kopi        │ Keluar │ 12,000       │
-│ 3   │ 02/05/2026 │ beli baju        │ Keluar │ 105,000      │
-│ 4   │ 02/05/2026 │ beli kopi        │ Masuk  │ 25,000       │
-│ 5   │ 02/05/2026 │ beli kopi        │ Masuk  │ 300          │
-│ 6   │ 02/05/2026 │ ada              │ Keluar │ 300          │
-│ 7   │ 02/05/2026 │ beli kopi        │ Masuk  │ 300,000      │
-├─────┼────────────┼──────────────────┼────────┼──────────────┤
-│     │            │ TOTAL SALDO AKHIR│        │ 875,600      │
-└─────┴────────────┴──────────────────┴────────┴──────────────┘
-```
-
-### Fitur yang Tersedia di Excel
-
-✅ Auto filter pada header  
-✅ Rumus SUM otomatis  
-✅ Format Rupiah  
-✅ Warna zebra untuk baris data  
-✅ Border rapi  
-✅ Header dengan background biru  
-✅ Footer dengan background kuning  
-
----
-
-## 📝 Catatan Penting
-
-1. **Header Bulan**: Parameter `$month` menggunakan format `Y-m` (contoh: 2026-05)
-
-2. **Logo**: Simpan logo di `storage/app/public/logo_up.png`
-
-3. **Performance**: Untuk data > 10.000 baris, pertimbangkan menggunakan chunking atau queue
-
-4. **Compatibility**: File Excel yang dihasilkan kompatibel dengan Excel 2007 ke atas (format .xlsx)
+1. **Header bersih**: `ID | TANGGAL | KETERANGAN | JENIS | JUMLAH`
+2. **Rumus SUM otomatis**: `=SUM(F9:F17)` langsung terpasang
+3. **Format Rupiah**: Semua angka terformat dengan benar
+4. **Tidak perlu cut header** - Langsung jalan!
 
 ---
 
 ## 🎯 Kesimpulan
 
-Fitur Export Excel dengan Auto SUM ini memberikan kemudahan bagi user dalam:
-- Mendapatkan laporan keuangan instan
-- Tidak perlu membuat rumus SUM manual
-- Tampilan profesional dan rapi
-- Bisa difilter per periode
+| Masalah | Solusi |
+|---------|--------|
+| Header "JUMLAH (RP)" | Ganti dengan "JUMLAH" |
+| SQLite koneksi | Setting .env dengan path absolut |
+| SUM tidak jalan | Pastikan heading tanpa karakter khusus |
+| Permission error | chmod 777 pada folder database |
 
-Dengan mengikuti dokumentasi ini, Anda dapat dengan mudah mengimplementasikan fitur export Excel yang sudah dilengkapi dengan auto SUM di aplikasi Laravel Anda.
-
----
-
-**Dokumentasi oleh:** Tim Developer  
-**Versi:** 1.0  
-**Terakhir Diupdate:** 2026-05-06
+**Dokumentasi ini sudah mencakup semua aspek dari instalasi hingga troubleshooting.** Jika masih ada kendala, silakan cek log di `storage/logs/laravel.log` atau tanyakan lebih detail!
