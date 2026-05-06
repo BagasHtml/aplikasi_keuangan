@@ -16,6 +16,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Carbon\Carbon;
 
@@ -36,26 +37,23 @@ class TransactionsExport implements
         $this->month = $month;
     }
 
-    public function title(): string
-    {
-        return 'Laporan Keuangan';
+    public function title(): string 
+    { 
+        return 'Laporan Keuangan'; 
     }
-
-    public function startCell(): string
-    {
-        return 'B9';
+    
+    public function startCell(): string 
+    { 
+        return 'B9'; 
     }
 
     public function query()
     {
         $query = Transaction::query();
-
         if ($this->month) {
             $date = Carbon::parse($this->month);
-            $query->whereYear('created_at', $date->year)
-                  ->whereMonth('created_at', $date->month);
+            $query->whereYear('created_at', $date->year)->whereMonth('created_at', $date->month);
         }
-
         return $query->orderBy('created_at', 'asc');
     }
 
@@ -70,17 +68,17 @@ class TransactionsExport implements
         ];
     }
 
-    public function columnFormats(): array
-    {
+    public function columnFormats(): array 
+    { 
         return [
-            'F' => '"Rp "#,##0',
-        ];
+            'F' => NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1
+        ]; 
     }
 
     public function headings(): array
     {
         return [
-            ['ID', 'TANGGAL', 'KETERANGAN', 'JENIS', 'JUMLAH (RP)'],
+            'ID', 'TANGGAL', 'KETERANGAN', 'JENIS', 'JUMLAH'
         ];
     }
 
@@ -88,21 +86,12 @@ class TransactionsExport implements
     {
         $drawing = new Drawing();
         $logoPath = storage_path('app/public/logo_up.png');
-
-        if (!file_exists($logoPath)) {
-            $logoUrl = 'https://thi-web6.github.io/resume/images/tarunabangsaicon.png';
-            $content = @file_get_contents($logoUrl);
-            if ($content) file_put_contents($logoPath, $content);
-        }
-
         if (file_exists($logoPath)) {
-            $drawing->setName('Logo');
             $drawing->setPath($logoPath);
             $drawing->setHeight(60);
             $drawing->setCoordinates('B2');
             return $drawing;
         }
-
         return [];
     }
 
@@ -111,18 +100,35 @@ class TransactionsExport implements
         return [
             AfterSheet::class => function(AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
-                $highestRow = $sheet->getHighestRow();
-
-                $this->setupHeader($sheet);
-                $this->setupTableStyle($sheet, $highestRow);
-                $this->setupFooter($sheet, $highestRow);
+                
+                $this->setupHeader($event, $sheet);
+                
+                $rowCount = $this->getRowCount();
+                $startRow = 9;
+                $endRow = $startRow + $rowCount - 1;
+                
+                if ($rowCount > 0) {
+                    $this->setupTableStyle($event, $sheet, $startRow, $endRow);
+                    $this->setupFooter($event, $sheet, $startRow, $endRow);
+                } else {
+                    $this->setupEmptyData($event, $sheet);
+                }
             },
         ];
     }
 
-    private function setupHeader(Worksheet $sheet): void
+    private function getRowCount(): int
     {
-        $sheet->getColumnDimension('A')->setWidth(2);
+        $query = Transaction::query();
+        if ($this->month) {
+            $date = Carbon::parse($this->month);
+            $query->whereYear('created_at', $date->year)->whereMonth('created_at', $date->month);
+        }
+        return $query->count();
+    }
+
+    private function setupHeader(AfterSheet $event, Worksheet $sheet): void
+    {
         $sheet->getColumnDimension('B')->setWidth(8); 
         $sheet->getColumnDimension('C')->setWidth(15);
         $sheet->getColumnDimension('D')->setWidth(40);
@@ -130,65 +136,123 @@ class TransactionsExport implements
         $sheet->getColumnDimension('F')->setWidth(20);
 
         $sheet->mergeCells('D2:F2');
-        $sheet->mergeCells('D3:F3');
         $sheet->setCellValue('D2', 'LAPORAN KEUANGAN UNIT PRODUKSI');
-        $sheet->setCellValue('D3', 'SMK TARUNA BANGSA');
+        $sheet->setCellValue('D3', 'SMK Taruna Bangsa');
+        $sheet->getStyle('D2')->getFont()->setBold(true)->setSize(12);
+        $sheet->getStyle('D3')->getFont()->setSize(11);
 
-        $sheet->getStyle('D2:D3')->applyFromArray([
-            'font' => ['bold' => true, 'size' => 12],
-            'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT]
-        ]);
+        if ($this->month) {
+            $date = Carbon::parse($this->month);
+            $sheet->setCellValue('D4', 'Periode: ' . $date->format('F Y'));
+            $sheet->getStyle('D4')->getFont()->setItalic(true);
+        }
 
-        $sheet->getStyle('B8:F8')->applyFromArray([
-            'font' => ['bold' => true],
-            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        $event->sheet->getStyle('B8:F8')->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'size' => 11,
+                'color' => ['argb' => 'FFFFFFFF']
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['argb' => 'FF3498DB']
+            ],
             'borders' => [
-                'bottom' => ['borderStyle' => Border::BORDER_THIN]
+                'bottom' => ['borderStyle' => Border::BORDER_THIN],
+                'top' => ['borderStyle' => Border::BORDER_THIN]
             ]
         ]);
     }
 
-    private function setupTableStyle(Worksheet $sheet, int $highestRow): void
+    private function setupTableStyle(AfterSheet $event, Worksheet $sheet, int $startRow, int $endRow): void
     {
-        if ($highestRow < 9) return;
-
-        $sheet->getStyle("B9:C{$highestRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("E9:E{$highestRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("D9:D{$highestRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $event->sheet->getStyle("B{$startRow}:F{$endRow}")->applyFromArray([
+            'borders' => [
+                'allBorders' => ['borderStyle' => Border::BORDER_THIN]
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER
+            ]
+        ]);
         
-        $sheet->getStyle("B9:F{$highestRow}")->applyFromArray([
-            'borders' => [
-                'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]
-            ]
-        ]);
+        $event->sheet->getStyle("F{$startRow}:F{$endRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        
+        for ($row = $startRow; $row <= $endRow; $row++) {
+            if ($row % 2 == 0) {
+                $event->sheet->getStyle("B{$row}:F{$row}")->applyFromArray([
+                    'fill' => [
+                        'fillType' => Fill::FILL_SOLID,
+                        'startColor' => ['argb' => 'FFF9F9F9']
+                    ]
+                ]);
+            }
+        }
     }
 
-    private function setupFooter(Worksheet $sheet, int $highestRow): void
+    private function setupFooter(AfterSheet $event, Worksheet $sheet, int $startRow, int $endRow): void
     {
-        $footerRow = $highestRow > 8 ? $highestRow + 1 : 10;
-        $lastDataRow = $highestRow > 8 ? $highestRow : 9;
+        $footerRow = $endRow + 1;
         
         $sheet->mergeCells("B{$footerRow}:E{$footerRow}");
         $sheet->setCellValue("B{$footerRow}", 'TOTAL SALDO AKHIR');
+        $sheet->setCellValue("F{$footerRow}", "=SUM(F{$startRow}:F{$endRow})");
         
-        // Rumus SUM langsung menjumlahkan kolom F
-        $formula = sprintf('=SUM(F9:F%d)', $lastDataRow);
-        $sheet->setCellValue("F{$footerRow}", $formula);
-
-        $sheet->getStyle("B{$footerRow}:F{$footerRow}")->applyFromArray([
-            'font' => ['bold' => true],
+        $event->sheet->getStyle("B{$footerRow}:F{$footerRow}")->applyFromArray([
+            'font' => ['bold' => true, 'size' => 12],
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
-                'color' => ['rgb' => 'F1C40F']
-            ],
-            'alignment' => [
-                'horizontal' => Alignment::HORIZONTAL_CENTER
+                'startColor' => ['argb' => 'FFF1C40F']
             ],
             'borders' => [
-                'allBorders' => ['borderStyle' => Border::BORDER_THIN]
+                'top' => ['borderStyle' => Border::BORDER_THICK],
+                'bottom' => ['borderStyle' => Border::BORDER_THICK],
+                'left' => ['borderStyle' => Border::BORDER_THIN],
+                'right' => ['borderStyle' => Border::BORDER_THIN]
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER
             ]
         ]);
+        
+        $event->sheet->getStyle("F{$footerRow}")->getNumberFormat()
+            ->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
+    }
 
-        $sheet->getStyle("F{$footerRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+    private function setupEmptyData(AfterSheet $event, Worksheet $sheet): void
+    {
+        $sheet->mergeCells('B10:F10');
+        $sheet->setCellValue('B10', 'Tidak ada data transaksi untuk periode ini');
+        $sheet->getStyle('B10')->getFont()->setItalic(true)->setSize(11);
+        $sheet->getStyle('B10')->getFont()->getColor()->setARGB('FFE74C3C');
+        $sheet->getStyle('B10')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        
+        $sheet->mergeCells('B11:E11');
+        $sheet->setCellValue('B11', 'TOTAL SALDO AKHIR');
+        $sheet->setCellValue('F11', 0);
+        
+        $event->sheet->getStyle("B11:F11")->applyFromArray([
+            'font' => ['bold' => true, 'size' => 12],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['argb' => 'FFF1C40F']
+            ],
+            'borders' => [
+                'top' => ['borderStyle' => Border::BORDER_THICK],
+                'bottom' => ['borderStyle' => Border::BORDER_THICK]
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER
+            ]
+        ]);
+        
+        $event->sheet->getStyle("F11")->getNumberFormat()
+            ->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
     }
 }
